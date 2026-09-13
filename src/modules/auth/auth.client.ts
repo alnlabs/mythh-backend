@@ -11,7 +11,7 @@ export function createAuthClient(req: Request, res: Response) {
   return createServerClient(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, {
     cookieOptions: {
       path: "/",
-      sameSite: "lax",
+      sameSite: env.NODE_ENV === "production" ? "none" : "lax",
       httpOnly: true,
       secure: env.NODE_ENV === "production",
     },

@@ -10,7 +10,14 @@ const envSchema = z.object({
   SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
   SUPABASE_SECRET_KEY: z.string().optional().default(""),
   SUPABASE_JWKS_URL: z.string().url(),
-  APP_URL: z.string().url().default("http://localhost:3001"),
+  APP_URL: z.preprocess(
+    (value) => {
+      if (typeof value === "string" && value.length > 0) return value;
+      if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+      return "http://localhost:3001";
+    },
+    z.string().url(),
+  ),
   FRONTEND_URL: z.preprocess(
     (value) => (value === "" ? undefined : value),
     z.string().url().optional(),
