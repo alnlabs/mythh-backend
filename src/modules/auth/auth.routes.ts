@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 
 import { env } from "../../config/env.js";
 import { HttpError } from "../../middleware/error-handler.js";
@@ -11,6 +12,37 @@ import {
   publicUser,
   safeNextPath,
 } from "./auth.utils.js";
+
+const profileSelect =
+  "id, email, display_name, avatar_url, role, status, country_code, default_category_id, default_category:categories!default_category_id(id, name, slug)";
+
+const updateProfileSchema = z.object({
+  countryCode: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{2}$/)
+    .nullable()
+    .optional(),
+  defaultCategoryId: z.string().uuid().nullable().optional(),
+});
+
+function presentProfile(row: Record<string, unknown> | null) {
+  if (!row) return null;
+  const category = row.default_category;
+  const unwrapped = Array.isArray(category) ? category[0] : category;
+  return {
+    id: row.id,
+    email: row.email,
+    display_name: row.display_name,
+    avatar_url: row.avatar_url,
+    role: row.role,
+    status: row.status,
+    country_code: row.country_code ?? null,
+    default_category_id: row.default_category_id ?? null,
+    default_category: unwrapped ?? null,
+  };
+}
 
 export const authRouter = Router();
 
@@ -152,10 +184,10 @@ authRouter.get("/me", requireSupabaseAuth("user"), async (req, res, next) => {
 
       const { data } = await req.supabase
         .from("profiles")
-        .select("id, email, display_name, avatar_url, role, status")
+        .select(profileSelect)
         .eq("id", auth.userClaims.id)
         .maybeSingle();
-      profile = data;
+      profile = presentProfile(data as Record<string, unknown> | null);
     }
 
     res.json({
@@ -163,6 +195,47 @@ authRouter.get("/me", requireSupabaseAuth("user"), async (req, res, next) => {
       user: auth?.userClaims ?? null,
       profile,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.patch("/me", requireSupabaseAuth("user"), async (req, res, next) => {
+  try {
+    const userId = req.supabaseAuth?.userClaims?.id;
+    if (!req.supabase || !userId) {
+      throw new HttpError(401, "Authentication required", "UNAUTHENTICATED");
+    }
+
+    const body = updateProfileSchema.parse(req.body);
+    const patch: {
+      country_code?: string | null;
+      default_category_id?: string | null;
+    } = {};
+
+    if (body.countryCode !== undefined) {
+      patch.country_code = body.countryCode;
+    }
+    if (body.defaultCategoryId !== undefined) {
+      patch.default_category_id = body.defaultCategoryId;
+    }
+
+    if (Object.keys(patch).length === 0) {
+      throw new HttpError(400, "Nothing to update", "EMPTY_PROFILE_UPDATE");
+    }
+
+    const { data, error } = await req.supabase
+      .from("profiles")
+      .update(patch)
+      .eq("id", userId)
+      .select(profileSelect)
+      .single();
+
+    if (error || !data) {
+      throw new HttpError(400, error?.message ?? "Could not update profile", "PROFILE_UPDATE_FAILED");
+    }
+
+    res.json({ profile: presentProfile(data as Record<string, unknown>) });
   } catch (error) {
     next(error);
   }

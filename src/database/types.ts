@@ -18,6 +18,8 @@ export type Database = {
           avatar_url: string | null;
           role: UserRole;
           status: UserStatus;
+          country_code: string | null;
+          default_category_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -28,6 +30,8 @@ export type Database = {
           avatar_url?: string | null;
           role?: UserRole;
           status?: UserStatus;
+          country_code?: string | null;
+          default_category_id?: string | null;
         };
         Update: {
           email?: string | null;
@@ -35,6 +39,8 @@ export type Database = {
           avatar_url?: string | null;
           role?: UserRole;
           status?: UserStatus;
+          country_code?: string | null;
+          default_category_id?: string | null;
         };
         Relationships: [];
       };
@@ -69,6 +75,7 @@ export type Database = {
           category_id: string;
           creator_id: string | null;
           status: MythStatus;
+          country_code: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -80,6 +87,7 @@ export type Database = {
           category_id: string;
           creator_id?: string | null;
           status?: MythStatus;
+          country_code?: string | null;
         };
         Update: {
           title?: string;
@@ -89,6 +97,7 @@ export type Database = {
           category_id?: string;
           creator_id?: string | null;
           status?: MythStatus;
+          country_code?: string | null;
         };
         Relationships: [];
       };

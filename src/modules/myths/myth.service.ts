@@ -11,6 +11,7 @@ const mythSelect = `
   verdict,
   explanation,
   status,
+  country_code,
   created_at,
   updated_at,
   category:categories(id, name, slug),
@@ -61,7 +62,7 @@ async function loadStats(client: MythhClient, mythIds: string[]) {
 
 export async function listApprovedMyths(
   client: MythhClient,
-  options: { limit: number; categorySlug?: string; q?: string },
+  options: { limit: number; categorySlug?: string; q?: string; country?: string },
 ) {
   let query = client
     .from("myths")
@@ -69,6 +70,10 @@ export async function listApprovedMyths(
     .eq("status", "APPROVED")
     .order("created_at", { ascending: false })
     .limit(options.limit);
+
+  if (options.country) {
+    query = query.or(`country_code.eq.${options.country},country_code.is.null`);
+  }
 
   if (options.categorySlug) {
     const { data: category, error } = await client
@@ -200,6 +205,7 @@ export async function createMyth(
     title: string;
     explanation: string;
     categoryId: string;
+    countryCode?: string | null;
     verdict?: "TRUE" | "FALSE" | "PARTIALLY_TRUE" | "UNCERTAIN";
     sources?: { title?: string; url: string }[];
   },
@@ -211,6 +217,7 @@ export async function createMyth(
       slug: uniqueSlug(input.title),
       explanation: input.explanation,
       category_id: input.categoryId,
+      country_code: input.countryCode ?? null,
       verdict: input.verdict ?? "UNCERTAIN",
     })
     .select("id, slug, status")

@@ -25,6 +25,7 @@ export type MythRow = {
   verdict: string;
   explanation: string;
   status: string;
+  country_code: string | null;
   created_at: string;
   updated_at: string;
   category: CategoryRow | CategoryRow[] | null;
@@ -71,6 +72,7 @@ export function presentMyth(
     status: myth.status,
     createdAt: myth.created_at,
     updatedAt: myth.updated_at,
+    countryCode: myth.country_code,
     category: category
       ? { id: category.id, name: category.name, slug: category.slug }
       : null,

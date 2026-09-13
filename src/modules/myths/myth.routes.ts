@@ -18,15 +18,28 @@ import {
 export const mythRouter = Router();
 
 const listQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(50).default(20),
+  limit: z.coerce.number().int().min(1).max(200).default(20),
   category: z.string().min(1).optional(),
   q: z.string().min(1).optional(),
+  country: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{2}$/)
+    .optional(),
 });
 
 const createMythSchema = z.object({
   title: z.string().trim().min(8).max(200),
   explanation: z.string().trim().min(20).max(5000),
   categoryId: z.string().uuid(),
+  countryCode: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{2}$/)
+    .nullable()
+    .optional(),
   verdict: z.enum(["TRUE", "FALSE", "PARTIALLY_TRUE", "UNCERTAIN"]).optional(),
   sources: z
     .array(
@@ -58,6 +71,7 @@ mythRouter.get("/myths", async (req, res, next) => {
       limit: query.limit,
       ...(query.category ? { categorySlug: query.category } : {}),
       ...(query.q ? { q: query.q } : {}),
+      ...(query.country ? { country: query.country } : {}),
     });
     res.json({ myths });
   } catch (error) {
@@ -122,6 +136,7 @@ mythRouter.post("/myths", requireSupabaseAuth("user"), async (req, res, next) =>
       title: body.title,
       explanation: body.explanation,
       categoryId: body.categoryId,
+      countryCode: body.countryCode ?? null,
       ...(body.verdict ? { verdict: body.verdict } : {}),
       ...(body.sources
         ? {

@@ -1,0 +1,170 @@
+// AI-generated write-ups of popular country claims collected from the open internet.
+
+const F = "FALSE";
+const T = "TRUE";
+const P = "PARTIALLY_TRUE";
+const U = "UNCERTAIN";
+
+function pack(country, category, rows) {
+  return rows.map(([title, verdict, explanation]) => ({
+    country,
+    category,
+    title,
+    verdict,
+    explanation,
+  }));
+}
+
+export const countryMyths = [
+  ...pack("IN", "culture", [
+    ["Cutting nails at night brings bad luck", F, "It is an old household rule from low-light days. Nail clippers and lamps made it a habit, not a curse."],
+    ["A lizard falling on you always means a fixed omen", F, "House geckos fall. Charts that map body parts to fate are folklore, not a schedule."],
+    ["A crow calling at the window means a guest is coming for sure", F, "Crows call for food and territory. A visitor may still show up by chance."],
+    ["Lemon and green chillies on the door keep the evil eye away as a proven shield", F, "It is a common nazar custom. There is no measured force leaving the string."],
+    ["Sleeping with your head to the south is always dangerous", F, "Vastu and folk rules vary. Sleep quality is more about the room, light, and mattress."],
+    ["You must not sweep the house after sunset or Lakshmi leaves", F, "It is a tidy-up superstition from oil-lamp evenings. Dirt does not wait for sunrise."],
+    ["Whistling at night invites snakes or spirits into the house", F, "Snakes do not RSVP to tunes. Night noise can bother neighbors. That is the real cost."],
+    ["A black cat crossing the road in India cancels the trip", F, "The cat is crossing. Your appointment is still on the calendar."],
+    ["Itching of the right palm always means money is coming", F, "Skin itches. Bank transfers do not take that API."],
+    ["Tulsi in the courtyard stops lightning from hitting the house", F, "A sacred plant is not a lightning rod. Height and metal paths decide strikes."],
+    ["Peacock feathers in the house remove Vastu faults by themselves", F, "They are decor and a national-bird souvenir. Layout and damp matter more."],
+    ["Breaking a coconut before a journey guarantees safety", F, "It is a blessing ritual. Seatbelts and sober driving do the measurable work."],
+    ["Hanging lemon-chilli outside a shop doubles the day's sales", F, "It may comfort the owner. Customers still follow price, habit, and location."],
+    ["You should not wash hair on Tuesday or Saturday or harm follows", F, "Weekly bans are custom. Hygiene does not use that calendar."],
+    ["New clothes must not be worn on inauspicious weekdays", F, "Astrology calendars are a choice. Cotton does not read panchang."],
+    ["A sneeze while leaving home means you must sit down or fail", F, "Dust and colds cause sneezes. The meeting does not get the memo."],
+    ["Seeing a mongoose first thing is always lucky", U, "Wildlife sightings are local. Luck is not a species trait."],
+    ["Offering milk to a snake statue or pit hydrates a real cobra", F, "Snakes do not drink bowls of milk as worship. The offering is symbolic and can sour."],
+    ["Kalasarpa dosha in a chart explains every career stall", F, "Astrology packages many worries. Skills, markets, and health still show up at work."],
+    ["A mangalsutra’s power fails if the gold is hollow", F, "It is a married symbol. Jewelry construction is a shop detail, not a cosmic fuse."],
+  ]),
+  ...pack("IN", "health", [
+    ["Curd at night always makes you catch a cold", F, "Dairy comfort varies by person. Colds come from viruses, not the clock on a bowl of dahi."],
+    ["Never drink water right after fruit or it ferments in the stomach", F, "Your gut handles fruit and water together. The ferment-bomb story is a diet-chain tale."],
+    ["Banana and milk together are a dangerous combination for everyone", F, "Many people eat both in one snack. A few have specific intolerances; that is not a national poison rule."],
+    ["Fish and milk in one meal turns into a toxin in the blood", F, "It is a widespread food-combining fear. Ordinary cooking does not invent a new poison."],
+    ["Cold drinks plus namkeen or bhutta will kill you on the spot", F, "Street-food pairings are common. Sudden collapse needs a medical cause, not a folklore recipe."],
+    ["Ganga jal never spoils so it is always safe to drink from any stretch", F, "The river is sacred to many and also carries pollution in places. Faith and lab tests are different questions."],
+    ["Neem leaves cure every skin disease if you just chew enough", P, "Neem shows up in traditional care. It is not a stand-in for diagnosis or prescribed medicine."],
+    ["Haldi milk replaces a doctor for any infection", P, "Turmeric is a kitchen spice with studied compounds. A golden cup is not antibiotics."],
+    ["Cow urine is a proven broad-spectrum medicine for humans", U, "It is used in some traditional products. Modern trials do not support it as general medicine."],
+    ["Fair skin means better health and higher status as a biological fact", F, "Skin tone is pigment and ancestry. Health is sleep, food, vaccines, and care — not a fairness cream."],
+    ["You should sweat out a fever under heavy blankets and no water", F, "Fevers need fluids and sense. Cooking yourself is not treatment."],
+    ["Homeopathic tiny pills work because the water remembers the medicine", F, "After enough dilution, no molecule remains. Feeling better can be time, care, or placebo."],
+    ["Oil pulling every morning detoxes the liver into the sink", F, "Swishing oil may feel clean in the mouth. The liver does not empty into a spit cup."],
+    ["Sitting in an AC room thins the blood and causes paralysis", F, "Air conditioning cools air. Strokes have vascular causes. See a doctor for sudden weakness."],
+    ["Eating rice at night is the main reason urban India gains weight", P, "Extra energy from any meal can add fat. Rice is a staple, not a unique night curse."],
+    ["Ajwain water fixes every stomach in ten minutes", P, "A household sip can ease mild gas for some. Persistent pain needs a real check."],
+    ["Kids should be given a ton of ghee so the brain grows on schedule", P, "Fats matter in a child’s diet. More ghee is not a measured IQ program."],
+    ["You can flush kidney stones with a beer and a long drive on a bad road", F, "That is a joke treatment. Stones need medical advice, not potholes."],
+    ["Monsoon mosquitoes only bite dirty houses", F, "Aedes and others breed in clean water pots too. Cover tanks and dump saucers."],
+    ["Papaya leaf juice is a guaranteed dengue platelet cure", U, "It is widely used and studied in places. It is not a replacement for hospital care in severe dengue."],
+  ]),
+  ...pack("IN", "history", [
+    ["The Taj Mahal was originally a Hindu palace named Tejo Mahalaya", F, "It is a 17th-century Mughal mausoleum built by Shah Jahan. The palace-rename story is a later claim."],
+    ["India has never invaded another land in all of history", F, "South Asian kingdoms waged wars across today’s borders for centuries. The peaceful-eternity line is a slogan."],
+    ["Sanskrit is the mother of every world language", P, "It is a central old Indo-Aryan language. Many language families have other roots."],
+    ["Zero was unknown until Europe invented it in the Renaissance", F, "Indian mathematicians developed zero as a number and placeholder that later traveled west."],
+    ["The British built every railway, court, and city from empty jungle", F, "Colonial projects were large. Cities, ports, and knowledge systems already existed."],
+    ["Ashoka suddenly became non-violent and the empire never fought again", P, "The Kalinga story is famous. Politics and force did not vanish overnight from the map."],
+    ["All ancient Indians were vegetarian as a single national diet", F, "Food rules varied by region, caste, and era. Meat and fish have long kitchens too."],
+    ["The Indus cities vanished because they were cursed", U, "Climate, rivers, and trade shifts are the live research. A movie curse is not the paper."],
+    ["Tipu Sultan’s rockets were fireworks with no military use", F, "Mysore rockets were used in war and later studied by the British."],
+    ["Netaji died in every alternate city at once, so no account can be true", U, "The official plane-crash account is still debated in public. Mystery is not the same as many simultaneous deaths."],
+    ["The 1857 rising was only sepoys angry about grease and nothing larger", P, "Cartridges were a spark. Land, rule, and politics were already dry tinder."],
+    ["Goa was always Portuguese until last Tuesday in schoolbook time", F, "It was a long colonial hold, then a 1961 annexation into India. The dates are specific."],
+    ["Partition was a last-minute drawing with no human cost we can name", F, "It redrew lives and killed and displaced millions. The line was not a homework doodle."],
+    ["The Emergency in the 1970s is a rumor invented by later TV", F, "It is a documented period of suspended rights and press controls."],
+    ["Pokhran tests were faked for the evening news", F, "India’s nuclear tests are a matter of official record and seismic detection."],
+  ]),
+  ...pack("IN", "science", [
+    ["A peacock never eats anything but tears and flowers", F, "Peacocks eat grains, insects, and small animals. The vegetarian-icon story is poetry."],
+    ["Snakes drink milk left in a saucer on Nag Panchami as their main diet", F, "Captive snakes may nose a bowl. Milk is not snake food and can harm them."],
+    ["Plastic rice from China has replaced grain in every Indian bazaar", F, "Food fraud exists in places. A nationwide plastic-rice swap is a circulating scare, not a measured fact."],
+    ["Bhabha-era science proved cow dung paints block nuclear radiation in a home", U, "Traditional plaster is real folk practice. It is not a substitute for a radiation standard."],
+    ["The Indian monsoon starts because the government opens a dam on a date", F, "Monsoon is a climate system. Dam schedules do not flip the Arabian Sea."],
+    ["Himalayan glaciers cannot shrink because the Ganga is eternal", F, "Sacred rivers and measured ice loss can both be discussed. Satellites still see change."],
+    ["A solar eclipse permanently poisons food left uncovered in an Indian kitchen", F, "An eclipse is a shadow. Cover food for dust if you want; the sun is not dripping toxin."],
+    ["Mustard oil is illegal in the United States so it must be poison here too", P, "US rules on edible mustard oil are about erucic acid labeling. Indian cooking use is a different food culture."],
+    ["Jaggery is not sugar so it cannot affect diabetes", F, "Gur is still sugar. The rustic look does not delete glucose."],
+    ["Western medicine ignores Ayurveda because it always fails in every trial", F, "Some Ayurvedic ideas overlap with studied plants. Evidence quality varies; dismissal and miracle claims both overshoot."],
+  ]),
+  ...pack("IN", "technology", [
+    ["Aadhaar numbers should be posted on WhatsApp to unlock a government gift", F, "That is a phishing pattern. Official portals do not ask you to broadcast Aadhaar in a group."],
+    ["KYC PDFs forwarded in a family group are always from RBI", F, "Look-alike circulars are a common scam. Check the real domain, not the uncle forward."],
+    ["A missed call from a +91 number cannot be a scam if it looks local", F, "Local numbers get spoofed. Do not call back odd missed calls that ask for OTPs."],
+    ["Truecaller name means the person is verified by the government", F, "It is a crowdsourced label. Anyone can look official on a screen."],
+    ["UPI collect requests are safe to accept if the name matches your niece", F, "A collect request pulls money. Names can be faked. Decline unknowns."],
+    ["IRCTC waits on a third-party WhatsApp agent with extra tatkal slots", F, "Official booking is on the railway site or app. Agents in chat are a classic fraud."],
+    ["A cheap Chinese phone cannot have malware if the box is sealed", F, "Sealed is not scanned. Sideloaded apps and odd permissions still matter."],
+    ["Jio or Airtel towers cause the village crop to fail by themselves", U, "Crop failure has weather, pests, and soil. Phone-tower blame is a recurring rumor."],
+    ["You should share your OTP so the bank can cancel a fraud they just called about", F, "Banks do not need your OTP to save you. Hang up and use the number on the card."],
+    ["Paytm or GPay gold schemes in a forwarded PDF are always official", F, "Treat surprise investment PDFs as bait. Open the app yourself."],
+  ]),
+  ...pack("US", "culture", [
+    ["The customer is legally always right in every US state", F, "It is a shop slogan. Stores can refuse service within the law."],
+    ["You will be arrested for jaywalking the moment you step off a curb in any city", P, "Some cities ticket it. Most crossings are not a felony scene."],
+    ["Tipping 20% is a federal law", F, "It is a strong custom in many restaurants. It is not a statute on every coffee."],
+    ["The First Amendment blocks a private company from banning your post", F, "It limits government. A platform is not Congress."],
+    ["All American cheese is plastic that never came from milk", F, "Processed slices are real food products. They are not toy plastic."],
+  ]),
+  ...pack("US", "history", [
+    ["The United States Constitution freed every enslaved person in 1789", F, "It allowed slavery to continue. Later amendments and a war changed the law."],
+    ["Cowboys were almost all white men from one Virginia county", F, "A large share of working cowboys were Black, Mexican, and Native."],
+    ["The first Thanksgiving menu is what you buy in a November commercial", F, "The 1621 meal was a different table and a harder politics."],
+    ["The US entered World War II the week Poland was invaded", F, "That was 1939. The US declared after Pearl Harbor in 1941."],
+    ["The moon landing was filmed in a Hollywood desert as official history", F, "Rocks, tracking, and later photos of the sites bury the studio story."],
+  ]),
+  ...pack("US", "health", [
+    ["You must drink eight cups of tap water or the FDA will be upset", F, "There is no personal cup quota from the government. Thirst and food fluids count."],
+    ["Organic on a US label means zero pesticides were used", F, "It is a farming standard. Some approved sprays still exist."],
+    ["The flu shot gives you the flu in the United States every fall", F, "Inactivated shots cannot cause influenza. A sore arm is not infection."],
+  ]),
+  ...pack("GB", "culture", [
+    ["Everyone in Britain has afternoon tea with the palace as a daily legal duty", F, "Tea is common. Palace tea is not a 4 p.m. statute."],
+    ["It is illegal to die in the Houses of Parliament so the place stays a royal peculiar", U, "This is a circulating fun fact. Treat it as folklore until you read the standing orders."],
+    ["British food has no spices because the climate forbids them", F, "Britain trades and cooks with spices. The bland-island joke is a sitcom."],
+    ["It always rains in London so umbrellas are issued at birth", F, "London is damp and also has bright weeks. The stereotype is weather standup."],
+  ]),
+  ...pack("GB", "history", [
+    ["The Blitz proved the war was only London’s story", F, "Many UK cities were bombed. The capital was not the only target."],
+    ["Vikings in Britain wore horned helmets on every raid", F, "The horns are costume history. War gear was plainer iron."],
+    ["The Magna Carta gave every medieval peasant a modern vote", F, "It limited a king in 1215 for barons. Democracy arrived much later."],
+  ]),
+  ...pack("PK", "culture", [
+    ["A taweez always medically treats illness if the thread is green", F, "Amulets are faith objects. Clinics still do the lab work."],
+    ["Eating beef on a given weekday is nationally forbidden by physics", F, "Food rules are religious and personal. Weekdays are not a chemistry lock."],
+  ]),
+  ...pack("BD", "culture", [
+    ["Hilsa bones are lucky if they stick in every guest equally", F, "They are bony fish. Careful eating beats a luck theory."],
+    ["A Kalbaishakhi storm can be stopped by a tin roof mantra", F, "Nor’westers are weather. Shelter and forecasts matter."],
+  ]),
+  ...pack("AE", "culture", [
+    ["It never rains in the UAE so wipers are decorative", F, "Rain is uncommon and still happens, sometimes hard. Drains and driving still matter."],
+    ["Ramadan hours mean food cannot be sold to anyone anywhere", F, "Public fasting rules vary by emirate and venue. Hotels and homes still feed people who are not fasting."],
+  ]),
+  ...pack("SG", "culture", [
+    ["Chewing gum in Singapore is a caning offence for tourists", P, "Gum import and litter rules are strict. It is not a cartoon death penalty."],
+    ["You will be fined for forgetting to flush in every stall as an urban legend with no basis", P, "Some older campaigns were real. Read the sign in front of you."],
+  ]),
+  ...pack("JP", "culture", [
+    ["Every Japanese meal must include fugu or it is inauthentic", F, "Fugu is a specialty. Everyday food is rice, fish, noodles, and a lot that does not kill you."],
+    ["Bowing angle is a single national degree taught to infants", P, "Bowing has context. There is not one baby protractor."],
+  ]),
+  ...pack("CN", "culture", [
+    ["Fortune cookies are an ancient Chinese restaurant law", F, "They were popularized in California. Many places in China do not serve them."],
+    ["The Great Wall is a single wall built in one weekend of one dynasty", F, "It is many walls and rebuilds. The postcard is a summary."],
+  ]),
+  ...pack("BR", "culture", [
+    ["The Amazon makes 20% of Earth’s oxygen that would vanish overnight if one state changed policy", P, "The forest is vital. Global oxygen slogans oversimplify the carbon and water story."],
+    ["Everyone in Brazil lives on a beach and football pitch at once", F, "It is a huge country of cities, farms, and forest. Postcards are not a census."],
+  ]),
+  ...pack("NG", "culture", [
+    ["A 419 email is always from a prince who needs only your account", F, "Advance-fee fraud uses many scripts. Real banks do not recruit you in a blast mail."],
+    ["Nollywood films are unofficial so they cannot be a real industry", F, "It is a large film industry. Informal is not imaginary."],
+  ]),
+  ...pack("AU", "culture", [
+    ["Every Australian animal is trying to kill you on the sidewalk", P, "Some fauna is dangerous. Cities are still cities. Watch the water and the bush."],
+    ["The country is empty desert from coast to coast", F, "Most people live in coastal cities. The interior is not the whole map."],
+  ]),
+];

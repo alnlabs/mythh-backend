@@ -12,7 +12,9 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "lint": "eslint src",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "seed:myths": "node scripts/seed-myths.mjs",
+    "seed:country-myths": "node scripts/seed-country-myths.mjs"
   },
   "dependencies": {
     "@supabase/server": "^1.6.0",
