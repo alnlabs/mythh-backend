@@ -1,3 +1,24 @@
+function isLocalHost(value?: string | null) {
+  if (!value) return true;
+  try {
+    const host = new URL(value.includes("://") ? value : `https://${value}`).hostname;
+    return host === "localhost" || host === "127.0.0.1";
+  } catch {
+    return true;
+  }
+}
+
+export function appUrlFromRequest(
+  req: { get(name: string): string | undefined; protocol: string },
+  fallback: string,
+) {
+  if (!isLocalHost(fallback)) return fallback;
+  const host = (req.get("x-forwarded-host") ?? req.get("host") ?? "").split(",")[0]?.trim();
+  const proto = req.get("x-forwarded-proto") ?? req.protocol ?? "https";
+  if (host && !isLocalHost(`https://${host}`)) return `${proto}://${host}`;
+  return fallback;
+}
+
 export function isOauthCancel(error: string | null) {
   if (!error) return false;
   const value = error.toLowerCase();

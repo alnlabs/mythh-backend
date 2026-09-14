@@ -7,6 +7,7 @@ import { requireSupabaseAuth } from "../../middleware/supabase.js";
 import { listMyMyths } from "../myths/myth.service.js";
 import { createAuthClient } from "./auth.client.js";
 import {
+  appUrlFromRequest,
   frontendAuthRedirect,
   isOauthCancel,
   publicUser,
@@ -50,7 +51,7 @@ authRouter.get("/auth/google", async (req, res, next) => {
   try {
     const supabase = createAuthClient(req, res);
     const nextPath = safeNextPath(req.query.next);
-    const redirectTo = new URL("/api/v1/auth/callback", env.APP_URL);
+    const redirectTo = new URL("/api/v1/auth/callback", appUrlFromRequest(req, env.APP_URL));
     redirectTo.searchParams.set("next", nextPath);
 
     const { data, error } = await supabase.auth.signInWithOAuth({

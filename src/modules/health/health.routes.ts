@@ -10,6 +10,8 @@ healthRouter.get("/health", (_req, res) => {
     status: "ok",
     service: "mythh-backend",
     time: new Date().toISOString(),
+    appUrl: env.APP_URL,
+    frontendUrl: env.FRONTEND_URL ?? null,
   });
 });
 
