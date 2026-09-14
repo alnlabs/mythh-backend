@@ -8,8 +8,12 @@ import { listMyMyths } from "../myths/myth.service.js";
 import { createAuthClient } from "./auth.client.js";
 import {
   appUrlFromRequest,
+  clearOauthStateCookies,
   frontendAuthRedirect,
+  frontendUrlFromRequest,
   isOauthCancel,
+  oauthNextFromRequest,
+  oauthStateCookies,
   publicUser,
   safeNextPath,
 } from "./auth.utils.js";
@@ -51,13 +55,17 @@ authRouter.get("/auth/google", async (req, res, next) => {
   try {
     const supabase = createAuthClient(req, res);
     const nextPath = safeNextPath(req.query.next);
-    const redirectTo = new URL("/api/v1/auth/callback", appUrlFromRequest(req, env.APP_URL));
-    redirectTo.searchParams.set("next", nextPath);
+    const frontendUrl = frontendUrlFromRequest(req, env.FRONTEND_URL);
+    const redirectTo = new URL("/api/v1/auth/callback", appUrlFromRequest(req, env.APP_URL)).toString();
+
+    for (const cookie of oauthStateCookies(req, nextPath, frontendUrl)) {
+      res.appendHeader("Set-Cookie", cookie);
+    }
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: redirectTo.toString(),
+        redirectTo,
         skipBrowserRedirect: true,
         queryParams: {
           access_type: "offline",
@@ -90,12 +98,17 @@ authRouter.get("/auth/callback", async (req, res, next) => {
     const code = typeof req.query.code === "string" ? req.query.code : null;
     const oauthError =
       typeof req.query.error === "string" ? req.query.error : null;
-    const nextPath = safeNextPath(req.query.next);
+    const nextPath = oauthNextFromRequest(req);
+    const frontendUrl = frontendUrlFromRequest(req, env.FRONTEND_URL);
+
+    for (const cookie of clearOauthStateCookies()) {
+      res.appendHeader("Set-Cookie", cookie);
+    }
 
     if (oauthError) {
       const cancelled = isOauthCancel(oauthError);
       const redirect = frontendAuthRedirect(
-        env.FRONTEND_URL,
+        frontendUrl,
         nextPath,
         cancelled ? "cancelled" : "error",
       );
@@ -114,7 +127,7 @@ authRouter.get("/auth/callback", async (req, res, next) => {
     }
 
     if (!code) {
-      const redirect = frontendAuthRedirect(env.FRONTEND_URL, nextPath, "cancelled");
+      const redirect = frontendAuthRedirect(frontendUrl, nextPath, "cancelled");
       if (redirect) {
         res.redirect(303, redirect);
         return;
@@ -126,7 +139,7 @@ authRouter.get("/auth/callback", async (req, res, next) => {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error || !data.session || !data.user) {
-      const redirect = frontendAuthRedirect(env.FRONTEND_URL, nextPath, "error");
+      const redirect = frontendAuthRedirect(frontendUrl, nextPath, "error");
       if (redirect) {
         res.redirect(303, redirect);
         return;
@@ -138,8 +151,8 @@ authRouter.get("/auth/callback", async (req, res, next) => {
       );
     }
 
-    if (env.FRONTEND_URL) {
-      const destination = new URL(nextPath, env.FRONTEND_URL);
+    if (frontendUrl) {
+      const destination = new URL(nextPath, frontendUrl);
       res.redirect(303, destination.toString());
       return;
     }
