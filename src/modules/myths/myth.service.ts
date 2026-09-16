@@ -178,6 +178,164 @@ function sanitizeSearch(value: string) {
   return value.replace(/[%_,()]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
 }
 
+const SEARCH_STOP = new Set([
+  "the",
+  "and",
+  "for",
+  "that",
+  "this",
+  "with",
+  "from",
+  "are",
+  "was",
+  "were",
+  "not",
+  "but",
+  "you",
+  "your",
+  "our",
+  "its",
+  "must",
+  "can",
+  "should",
+  "would",
+  "could",
+  "will",
+  "just",
+  "than",
+  "then",
+  "them",
+  "they",
+  "their",
+  "been",
+  "have",
+  "has",
+  "had",
+  "does",
+  "did",
+  "into",
+  "over",
+  "only",
+  "also",
+  "more",
+  "some",
+  "any",
+  "all",
+  "each",
+  "very",
+  "too",
+  "a",
+  "an",
+  "of",
+  "in",
+  "on",
+  "to",
+  "is",
+  "it",
+  "or",
+  "as",
+  "at",
+  "by",
+  "be",
+]);
+
+function relatedTokens(q: string) {
+  return sanitizeSearch(q)
+    .toLowerCase()
+    .split(" ")
+    .filter((token) => token.length >= 3 && !SEARCH_STOP.has(token))
+    .slice(0, 5);
+}
+
+function titleWords(title: string) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
+}
+
+function relatedScore(title: string, query: string) {
+  const queryWords = titleWords(query);
+  const normalizedTitle = titleWords(title).join(" ");
+  const normalizedQuery = queryWords.join(" ");
+  if (!normalizedTitle || !normalizedQuery) return 0;
+  if (normalizedTitle === normalizedQuery) return 1000;
+  if (
+    queryWords.length >= 2 &&
+    (normalizedTitle.includes(normalizedQuery) || normalizedQuery.includes(normalizedTitle))
+  ) {
+    return 800;
+  }
+  const tokens = relatedTokens(query);
+  if (!tokens.length) return 0;
+  const words = titleWords(title);
+  const hits = tokens.filter((token) =>
+    words.some((word) => word === token || (token.length >= 4 && word.startsWith(token))),
+  ).length;
+  return hits * 20 + Math.round((hits / tokens.length) * 40);
+}
+
+export async function listRelatedMyths(client: MythhClient, q: string, limit = 5) {
+  const phrase = sanitizeSearch(q).toLowerCase();
+  if (phrase.length < 4) return [];
+  const tokens = relatedTokens(q);
+  const longest = [...tokens].sort((left, right) => right.length - left.length)[0];
+  const needles = [
+    ...new Set(
+      [tokens.length > 0 ? phrase : null, longest].filter(
+        (needle): needle is string =>
+          Boolean(needle && needle.length >= 3 && !SEARCH_STOP.has(needle)),
+      ),
+    ),
+  ];
+  if (needles.length === 0) return [];
+
+  const batches = await Promise.all(
+    needles.map(async (needle) => {
+      const { data, error } = await client
+        .from("myths")
+        .select("id, title, slug, status, category:categories(id, name, slug)")
+        .eq("status", "APPROVED")
+        .ilike("title", `%${needle}%`)
+        .limit(12);
+      if (error) {
+        throw new HttpError(502, error.message, "RELATED_MYTHS_FAILED");
+      }
+      return data ?? [];
+    }),
+  );
+
+  const seen = new Map<string, (typeof batches)[number][number]>();
+  for (const batch of batches) {
+    for (const row of batch) {
+      seen.set(row.id, row);
+    }
+  }
+
+  const minScore = tokens.length >= 2 ? 50 : 20;
+
+  return [...seen.values()]
+    .map((row) => {
+      const category = Array.isArray(row.category) ? row.category[0] : row.category;
+      return {
+        id: row.id,
+        title: row.title,
+        slug: row.slug,
+        status: row.status,
+        score: relatedScore(row.title, q),
+        category: category
+          ? { id: category.id, name: category.name, slug: category.slug }
+          : null,
+      };
+    })
+    .filter((row) => row.score >= minScore)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, Math.min(limit, 8))
+    .map(({ score: _score, ...myth }) => myth);
+}
+
 export async function getMyth(
   client: MythhClient,
   idOrSlug: string,

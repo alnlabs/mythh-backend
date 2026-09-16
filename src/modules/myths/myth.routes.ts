@@ -17,6 +17,7 @@ import {
   listMythComments,
   listMythSources,
   pickApprovedMythSlug,
+  listRelatedMyths,
 } from "./myth.service.js";
 
 export const mythRouter = Router();
@@ -116,6 +117,19 @@ mythRouter.get("/myths/random", optionalSupabaseAuth(), async (req, res, next) =
       throw new HttpError(404, "Myth not found", "MYTH_NOT_FOUND");
     }
     res.json({ slug });
+  } catch (error) {
+    next(error);
+  }
+});
+
+mythRouter.get("/myths/related", optionalSupabaseAuth(), rateLimit({ name: "related", windowMs: 60_000, max: 60 }), async (req, res, next) => {
+  try {
+    const query = listQuerySchema.parse(req.query);
+    if (!query.q) {
+      throw new HttpError(400, "Search query is required", "MISSING_SEARCH_QUERY");
+    }
+    const myths = await listRelatedMyths(req.supabase ?? createAnonClient(), query.q, query.limit);
+    res.json({ myths });
   } catch (error) {
     next(error);
   }
