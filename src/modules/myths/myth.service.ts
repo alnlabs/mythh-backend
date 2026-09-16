@@ -9,7 +9,7 @@ export type VoteIdentity = {
   anonymousId?: string | null;
 };
 
-const mythSelect = `
+const mythCardSelect = `
   id,
   title,
   slug,
@@ -20,7 +20,11 @@ const mythSelect = `
   created_at,
   updated_at,
   category:categories(id, name, slug),
-  creator:profiles(id, display_name, avatar_url),
+  creator:profiles(id, display_name, avatar_url)
+`;
+
+const mythSelect = `
+  ${mythCardSelect},
   sources(id, title, url)
 `;
 
@@ -110,7 +114,7 @@ export async function listApprovedMyths(
 ) {
   let query = client
     .from("myths")
-    .select(mythSelect)
+    .select(mythCardSelect)
     .eq("status", "APPROVED")
     .order("created_at", { ascending: false })
     .limit(options.limit);
@@ -207,6 +211,49 @@ export async function getMyth(
     commentsByMyth.get(myth.id) ?? 0,
     myVotes.get(myth.id) ?? null,
   );
+}
+
+export async function pickApprovedMythSlug(
+  client: MythhClient,
+  options: { categorySlug?: string; country?: string } = {},
+) {
+  let query = client
+    .from("myths")
+    .select("slug, country_code")
+    .eq("status", "APPROVED")
+    .order("created_at", { ascending: false })
+    .limit(24);
+
+  if (options.country) {
+    query = query.or(`country_code.eq.${options.country},country_code.is.null`);
+  }
+
+  if (options.categorySlug) {
+    const { data: category, error } = await client
+      .from("categories")
+      .select("id")
+      .eq("slug", options.categorySlug)
+      .maybeSingle();
+
+    if (error) {
+      throw new HttpError(502, error.message, "CATEGORY_LOOKUP_FAILED");
+    }
+    if (!category) return null;
+    query = query.eq("category_id", category.id);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    throw new HttpError(502, error.message, "MYTH_PICK_FAILED");
+  }
+
+  const rows = data ?? [];
+  if (rows.length === 0) return null;
+  const local = options.country
+    ? rows.filter((row) => row.country_code === options.country)
+    : rows;
+  const pool = local.length ? local : rows;
+  return pool[Math.floor(Math.random() * pool.length)]?.slug ?? pool[0]?.slug ?? null;
 }
 
 export async function listMythComments(client: MythhClient, mythId: string) {

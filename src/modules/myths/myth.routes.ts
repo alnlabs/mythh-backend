@@ -16,6 +16,7 @@ import {
   listApprovedMyths,
   listMythComments,
   listMythSources,
+  pickApprovedMythSlug,
 } from "./myth.service.js";
 
 export const mythRouter = Router();
@@ -99,6 +100,22 @@ mythRouter.get("/search", optionalSupabaseAuth(), async (req, res, next) => {
       q: query.q,
     }, voteIdentity(req, res));
     res.json({ myths });
+  } catch (error) {
+    next(error);
+  }
+});
+
+mythRouter.get("/myths/random", optionalSupabaseAuth(), async (req, res, next) => {
+  try {
+    const query = listQuerySchema.parse(req.query);
+    const slug = await pickApprovedMythSlug(req.supabase ?? createAnonClient(), {
+      ...(query.category ? { categorySlug: query.category } : {}),
+      ...(query.country ? { country: query.country } : {}),
+    });
+    if (!slug) {
+      throw new HttpError(404, "Myth not found", "MYTH_NOT_FOUND");
+    }
+    res.json({ slug });
   } catch (error) {
     next(error);
   }
