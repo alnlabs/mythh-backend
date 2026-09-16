@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { canWriteComment, isUuid, parseVoteValue, preferAccountVote, voteOutcome } from "./vote.logic.js";
+import { canWriteComment, isUuid, parseVoteValue, pickAnonymousId, preferAccountVote, voteOutcome } from "./vote.logic.js";
 
 describe("parseVoteValue", () => {
   it("accepts Myth/Fact values only", () => {
@@ -42,6 +42,14 @@ describe("anonymous identity", () => {
     assert.equal(isUuid("3b241101-e2bb-4255-8caf-4136c566a962"), true);
     assert.equal(isUuid("not-a-uuid"), false);
     assert.equal(isUuid(""), false);
+  });
+
+  it("prefers the cookie over the request header", () => {
+    const cookie = "3b241101-e2bb-4255-8caf-4136c566a962";
+    const header = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
+    assert.equal(pickAnonymousId(cookie, header), cookie);
+    assert.equal(pickAnonymousId(null, header), header);
+    assert.equal(pickAnonymousId("nope", "also-nope"), null);
   });
 });
 

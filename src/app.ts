@@ -48,6 +48,8 @@ app.use(
       callback(null, isAllowedOrigin(origin));
     },
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization", "X-Mythh-Anonymous-Id"],
+    exposedHeaders: ["X-Mythh-Anonymous-Id"],
   }),
 );
 app.use(express.json());

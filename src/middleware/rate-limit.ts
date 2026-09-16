@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 
 import { HttpError } from "./error-handler.js";
+import { readAnonymousId } from "../modules/votes/anonymous.js";
 
 type Bucket = { count: number; resetAt: number };
 
@@ -27,7 +28,7 @@ export function rateLimit({
     prune(now);
     const identity =
       req.supabaseAuth?.userClaims?.id ||
-      req.get("cookie")?.match(/mythh_anonymous_id=([^;]+)/)?.[1] ||
+      readAnonymousId(req) ||
       req.ip ||
       "unknown";
     const key = `${name}:${identity}`;

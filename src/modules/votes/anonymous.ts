@@ -3,9 +3,10 @@ import { randomUUID } from "node:crypto";
 import { serializeCookieHeader } from "@supabase/ssr";
 
 import { isProductionRuntime } from "../auth/auth.utils.js";
-import { isUuid } from "./vote.logic.js";
+import { pickAnonymousId } from "./vote.logic.js";
 
 export const ANONYMOUS_COOKIE = "mythh_anonymous_id";
+export const ANONYMOUS_HEADER = "X-Mythh-Anonymous-Id";
 
 function readCookie(header: string | undefined, name: string) {
   if (!header) return "";
@@ -23,8 +24,7 @@ function readCookie(header: string | undefined, name: string) {
 }
 
 export function readAnonymousId(req: { get(name: string): string | undefined }) {
-  const value = readCookie(req.get("cookie"), ANONYMOUS_COOKIE);
-  return isUuid(value) ? value : null;
+  return pickAnonymousId(readCookie(req.get("cookie"), ANONYMOUS_COOKIE), req.get(ANONYMOUS_HEADER));
 }
 
 export function anonymousCookieHeader(id: string) {
@@ -37,17 +37,31 @@ export function anonymousCookieHeader(id: string) {
   });
 }
 
+export function attachAnonymousId(
+  res: {
+    appendHeader(name: string, value: string): void;
+    setHeader(name: string, value: string): void;
+  },
+  id: string,
+) {
+  res.appendHeader("Set-Cookie", anonymousCookieHeader(id));
+  res.setHeader(ANONYMOUS_HEADER, id);
+}
+
 export function ensureAnonymousId(
   req: { get(name: string): string | undefined },
-  res: { appendHeader(name: string, value: string): void },
+  res: {
+    appendHeader(name: string, value: string): void;
+    setHeader(name: string, value: string): void;
+  },
 ) {
   const existing = readAnonymousId(req);
   if (existing) {
-    res.appendHeader("Set-Cookie", anonymousCookieHeader(existing));
+    attachAnonymousId(res, existing);
     return existing;
   }
 
   const next = randomUUID();
-  res.appendHeader("Set-Cookie", anonymousCookieHeader(next));
+  attachAnonymousId(res, next);
   return next;
 }

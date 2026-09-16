@@ -28,3 +28,9 @@ export function voteOutcome(verdict: MythVerdict | string, selected: VoteValue) 
 export function preferAccountVote<T>(accountVote: T | null | undefined, anonymousVote: T | null | undefined) {
   return accountVote ?? anonymousVote ?? null;
 }
+
+export function pickAnonymousId(cookieValue?: string | null, headerValue?: string | null) {
+  if (isUuid(cookieValue)) return cookieValue;
+  if (isUuid(headerValue)) return headerValue;
+  return null;
+}

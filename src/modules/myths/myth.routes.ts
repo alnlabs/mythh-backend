@@ -5,7 +5,7 @@ import { createAnonClient } from "../../database/client.js";
 import { HttpError } from "../../middleware/error-handler.js";
 import { rateLimit } from "../../middleware/rate-limit.js";
 import { optionalSupabaseAuth, requireSupabaseAuth } from "../../middleware/supabase.js";
-import { ensureAnonymousId, readAnonymousId } from "../votes/anonymous.js";
+import { ensureAnonymousId, readAnonymousId, attachAnonymousId } from "../votes/anonymous.js";
 import { parseVoteValue } from "../votes/vote.logic.js";
 import {
   castVote,
@@ -20,10 +20,12 @@ import {
 
 export const mythRouter = Router();
 
-function voteIdentity(req: Request) {
+function voteIdentity(req: Request, res?: { appendHeader(name: string, value: string): void; setHeader(name: string, value: string): void }) {
+  const anonymousId = readAnonymousId(req);
+  if (anonymousId && res) attachAnonymousId(res, anonymousId);
   return {
     userId: req.supabaseAuth?.userClaims?.id ?? null,
-    anonymousId: readAnonymousId(req),
+    anonymousId,
   };
 }
 
@@ -78,7 +80,7 @@ mythRouter.get("/myths", optionalSupabaseAuth(), async (req, res, next) => {
       ...(query.category ? { categorySlug: query.category } : {}),
       ...(query.q ? { q: query.q } : {}),
       ...(query.country ? { country: query.country } : {}),
-    }, voteIdentity(req));
+    }, voteIdentity(req, res));
     res.json({ myths });
   } catch (error) {
     next(error);
@@ -95,7 +97,7 @@ mythRouter.get("/search", optionalSupabaseAuth(), async (req, res, next) => {
     const myths = await listApprovedMyths(req.supabase ?? createAnonClient(), {
       limit: query.limit,
       q: query.q,
-    }, voteIdentity(req));
+    }, voteIdentity(req, res));
     res.json({ myths });
   } catch (error) {
     next(error);
@@ -107,7 +109,7 @@ mythRouter.get("/myths/:idOrSlug", optionalSupabaseAuth(), async (req, res, next
     const myth = await getMyth(
       req.supabase ?? createAnonClient(),
       String(req.params.idOrSlug ?? ""),
-      voteIdentity(req),
+      voteIdentity(req, res),
     );
     res.json({ myth });
   } catch (error) {
