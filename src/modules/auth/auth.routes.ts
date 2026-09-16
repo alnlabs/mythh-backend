@@ -4,7 +4,7 @@ import { z } from "zod";
 import { env } from "../../config/env.js";
 import type { MythhClient } from "../../database/client.js";
 import { HttpError } from "../../middleware/error-handler.js";
-import { requireSupabaseAuth } from "../../middleware/supabase.js";
+import { optionalSupabaseAuth, requireSupabaseAuth } from "../../middleware/supabase.js";
 import { listMyMyths, claimAnonymousVotes } from "../myths/myth.service.js";
 import { readAnonymousId } from "../votes/anonymous.js";
 import { createAuthClient } from "./auth.client.js";
@@ -193,27 +193,31 @@ authRouter.post("/auth/logout", async (req, res, next) => {
   }
 });
 
-authRouter.get("/me", requireSupabaseAuth("user"), async (req, res, next) => {
+authRouter.get("/me", optionalSupabaseAuth(), async (req, res, next) => {
   try {
     const auth = req.supabaseAuth;
-    let profile = null;
-
-    if (req.supabase && auth?.userClaims?.id) {
-      await req.supabase.rpc("claim_first_admin");
-      await req.supabase.rpc("apply_admin_allowlist");
-
-      const { data } = await req.supabase
-        .from("profiles")
-        .select(profileSelect)
-        .eq("id", auth.userClaims.id)
-        .maybeSingle();
-      profile = presentProfile(data as Record<string, unknown> | null);
+    if (!auth?.userClaims?.id || !req.supabase) {
+      res.json({
+        authMode: "guest",
+        user: null,
+        profile: null,
+      });
+      return;
     }
 
+    await req.supabase.rpc("claim_first_admin");
+    await req.supabase.rpc("apply_admin_allowlist");
+
+    const { data } = await req.supabase
+      .from("profiles")
+      .select(profileSelect)
+      .eq("id", auth.userClaims.id)
+      .maybeSingle();
+
     res.json({
-      authMode: auth?.authMode,
-      user: auth?.userClaims ?? null,
-      profile,
+      authMode: auth.authMode,
+      user: auth.userClaims,
+      profile: presentProfile(data as Record<string, unknown> | null),
     });
   } catch (error) {
     next(error);
