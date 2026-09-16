@@ -42,7 +42,7 @@ const envSchema = z.object({
     if (typeof value === "string" && value.length > 0 && !isLocalUrl(value)) {
       return value;
     }
-    if (process.env.VERCEL) return "https://mythh-frontend.vercel.app";
+    if (process.env.VERCEL) return "https://mythh.in";
     return undefined;
   }, z.string().url().optional()),
 });

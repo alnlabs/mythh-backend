@@ -6,6 +6,8 @@ function applyCors(req: IncomingMessage, res: ServerResponse) {
 
   const allowed =
     origin.endsWith(".vercel.app") ||
+    origin === "https://mythh.in" ||
+    origin === "https://www.mythh.in" ||
     origin.startsWith("http://localhost:") ||
     origin.startsWith("http://127.0.0.1:");
   if (!allowed) return;

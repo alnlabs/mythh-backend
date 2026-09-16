@@ -124,18 +124,25 @@ export type Database = {
         Row: {
           id: string;
           myth_id: string;
-          user_id: string;
+          user_id: string | null;
+          anonymous_id: string | null;
           value: VoteValue;
+          is_correct: boolean;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           myth_id: string;
-          user_id?: string;
+          user_id?: string | null;
+          anonymous_id?: string | null;
           value: VoteValue;
+          is_correct?: boolean;
         };
         Update: {
           value?: VoteValue;
+          user_id?: string | null;
+          anonymous_id?: string | null;
+          is_correct?: boolean;
         };
         Relationships: [];
       };
@@ -232,6 +239,24 @@ export type Database = {
       apply_admin_allowlist: {
         Args: Record<PropertyKey, never>;
         Returns: unknown;
+      };
+      cast_vote: {
+        Args: {
+          p_myth_id: string;
+          p_value: VoteValue;
+          p_anonymous_id?: string | null;
+        };
+        Returns: {
+          vote_id: string;
+          vote_value: VoteValue;
+          is_correct: boolean;
+          already_answered: boolean;
+          correct_answer: string | null;
+        }[];
+      };
+      claim_anonymous_votes: {
+        Args: { p_anonymous_id: string };
+        Returns: number;
       };
     };
     CompositeTypes: {

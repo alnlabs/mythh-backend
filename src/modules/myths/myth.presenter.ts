@@ -33,16 +33,23 @@ export type MythRow = {
   sources?: SourceRow[] | null;
 };
 
-export function presentStats(votes: VoteValue[], commentCount: number) {
-  const trueCount = votes.filter((value) => value === "TRUE").length;
-  const falseCount = votes.filter((value) => value === "FALSE").length;
+export function presentStats(
+  votes: Array<{ value: VoteValue; user_id?: string | null }>,
+  commentCount: number,
+) {
+  const trueCount = votes.filter((vote) => vote.value === "TRUE").length;
+  const falseCount = votes.filter((vote) => vote.value === "FALSE").length;
   const total = trueCount + falseCount;
+  const authenticatedCount = votes.filter((vote) => Boolean(vote.user_id)).length;
 
   return {
     trueCount,
     falseCount,
     truePercent: total === 0 ? 0 : Math.round((trueCount / total) * 100),
     falsePercent: total === 0 ? 0 : Math.round((falseCount / total) * 100),
+    responseCount: total,
+    authenticatedCount,
+    anonymousCount: total - authenticatedCount,
     commentCount,
   };
 }
@@ -57,8 +64,9 @@ function unwrap<T>(value: T | T[] | null | undefined): T | null {
 
 export function presentMyth(
   myth: MythRow,
-  votes: VoteValue[],
+  votes: Array<{ value: VoteValue; user_id?: string | null }>,
   commentCount: number,
+  myVote: VoteValue | null = null,
 ) {
   const category = unwrap(myth.category);
   const creator = unwrap(myth.creator);
@@ -89,5 +97,6 @@ export function presentMyth(
       url: source.url,
     })),
     stats: presentStats(votes, commentCount),
+    myVote,
   };
 }

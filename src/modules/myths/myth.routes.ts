@@ -1,10 +1,14 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { z } from "zod";
 
 import { createAnonClient } from "../../database/client.js";
 import { HttpError } from "../../middleware/error-handler.js";
-import { requireSupabaseAuth } from "../../middleware/supabase.js";
+import { rateLimit } from "../../middleware/rate-limit.js";
+import { optionalSupabaseAuth, requireSupabaseAuth } from "../../middleware/supabase.js";
+import { ensureAnonymousId, readAnonymousId } from "../votes/anonymous.js";
+import { parseVoteValue } from "../votes/vote.logic.js";
 import {
+  castVote,
   createComment,
   createMyth,
   createReport,
@@ -12,10 +16,16 @@ import {
   listApprovedMyths,
   listMythComments,
   listMythSources,
-  upsertVote,
 } from "./myth.service.js";
 
 export const mythRouter = Router();
+
+function voteIdentity(req: Request) {
+  return {
+    userId: req.supabaseAuth?.userClaims?.id ?? null,
+    anonymousId: readAnonymousId(req),
+  };
+}
 
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(20),
@@ -52,10 +62,6 @@ const createMythSchema = z.object({
     .optional(),
 });
 
-const voteSchema = z.object({
-  value: z.enum(["TRUE", "FALSE"]),
-});
-
 const commentSchema = z.object({
   content: z.string().trim().min(1).max(2000),
 });
@@ -64,41 +70,45 @@ const reportSchema = z.object({
   reason: z.string().trim().min(4).max(1000),
 });
 
-mythRouter.get("/myths", async (req, res, next) => {
+mythRouter.get("/myths", optionalSupabaseAuth(), async (req, res, next) => {
   try {
     const query = listQuerySchema.parse(req.query);
-    const myths = await listApprovedMyths(createAnonClient(), {
+    const myths = await listApprovedMyths(req.supabase ?? createAnonClient(), {
       limit: query.limit,
       ...(query.category ? { categorySlug: query.category } : {}),
       ...(query.q ? { q: query.q } : {}),
       ...(query.country ? { country: query.country } : {}),
-    });
+    }, voteIdentity(req));
     res.json({ myths });
   } catch (error) {
     next(error);
   }
 });
 
-mythRouter.get("/search", async (req, res, next) => {
+mythRouter.get("/search", optionalSupabaseAuth(), async (req, res, next) => {
   try {
     const query = listQuerySchema.parse(req.query);
     if (!query.q) {
       throw new HttpError(400, "Search query is required", "MISSING_SEARCH_QUERY");
     }
 
-    const myths = await listApprovedMyths(createAnonClient(), {
+    const myths = await listApprovedMyths(req.supabase ?? createAnonClient(), {
       limit: query.limit,
       q: query.q,
-    });
+    }, voteIdentity(req));
     res.json({ myths });
   } catch (error) {
     next(error);
   }
 });
 
-mythRouter.get("/myths/:idOrSlug", async (req, res, next) => {
+mythRouter.get("/myths/:idOrSlug", optionalSupabaseAuth(), async (req, res, next) => {
   try {
-    const myth = await getMyth(createAnonClient(), String(req.params.idOrSlug ?? ""));
+    const myth = await getMyth(
+      req.supabase ?? createAnonClient(),
+      String(req.params.idOrSlug ?? ""),
+      voteIdentity(req),
+    );
     res.json({ myth });
   } catch (error) {
     next(error);
@@ -155,23 +165,30 @@ mythRouter.post("/myths", requireSupabaseAuth("user"), async (req, res, next) =>
 
 mythRouter.post(
   "/myths/:idOrSlug/votes",
-  requireSupabaseAuth("user"),
+  optionalSupabaseAuth(),
+  rateLimit({ name: "vote", windowMs: 60_000, max: 40 }),
   async (req, res, next) => {
     try {
-      if (!req.supabase || !req.supabaseAuth?.userClaims?.id) {
-        throw new HttpError(401, "Authentication required", "UNAUTHENTICATED");
+      const selected = parseVoteValue(req.body?.value);
+      if (!selected) {
+        throw new HttpError(400, "selectedAnswer must be TRUE or FALSE", "INVALID_ANSWER");
       }
 
-      const body = voteSchema.parse(req.body);
       const idOrSlug = String(req.params.idOrSlug ?? "");
-      const myth = await getMyth(req.supabase, idOrSlug);
-      const vote = await upsertVote(
-        req.supabase,
-        req.supabaseAuth.userClaims.id,
-        myth.id,
-        body.value,
-      );
-      res.json({ vote });
+      const client = req.supabase ?? createAnonClient();
+      const myth = await getMyth(client, idOrSlug);
+      const userId = req.supabaseAuth?.userClaims?.id ?? null;
+      const anonymousId = userId ? readAnonymousId(req) : ensureAnonymousId(req, res);
+      const result = await castVote(client, myth.id, selected, userId ? null : anonymousId);
+      const nextMyth = await getMyth(client, myth.id, {
+        userId,
+        anonymousId: userId ? null : anonymousId,
+      });
+
+      res.status(result.alreadyAnswered ? 409 : 200).json({
+        ...result,
+        myth: nextMyth,
+      });
     } catch (error) {
       next(error);
     }
@@ -181,6 +198,7 @@ mythRouter.post(
 mythRouter.post(
   "/myths/:idOrSlug/comments",
   requireSupabaseAuth("user"),
+  rateLimit({ name: "comment", windowMs: 60_000, max: 20 }),
   async (req, res, next) => {
     try {
       if (!req.supabase) {

@@ -22,6 +22,41 @@ async function resolveAccessToken(
   return data.session?.access_token ?? null;
 }
 
+export function optionalSupabaseAuth() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const token = await resolveAccessToken(req, res);
+      if (!token) {
+        req.supabase = createContextClient<Database>();
+        next();
+        return;
+      }
+
+      const { data, error } = await verifyCredentials(
+        { token, apikey: null },
+        { auth: "user" },
+      );
+
+      if (error || !data) {
+        req.supabase = createContextClient<Database>();
+        next();
+        return;
+      }
+
+      req.supabaseAuth = data;
+      req.supabase = createContextClient<Database>({
+        auth: {
+          token: data.token,
+          ...(data.keyName ? { keyName: data.keyName } : {}),
+        },
+      });
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
 export function requireSupabaseAuth(auth: SupabaseAuthMode = "user") {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {

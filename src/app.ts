@@ -29,6 +29,7 @@ function isAllowedOrigin(origin?: string) {
   try {
     const url = new URL(origin);
     if (url.protocol === "https:" && url.hostname.endsWith(".vercel.app")) return true;
+    if (url.hostname === "mythh.in" || url.hostname === "www.mythh.in") return true;
     if (url.hostname === "localhost" || url.hostname === "127.0.0.1") return true;
   } catch {
     return false;

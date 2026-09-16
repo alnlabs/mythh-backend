@@ -1,7 +1,7 @@
 import { serializeCookieHeader } from "@supabase/ssr";
 
-const PRODUCTION_APP = "https://mythh-backend.vercel.app";
-const PRODUCTION_FRONTEND = "https://mythh-frontend.vercel.app";
+const PRODUCTION_APP = "https://api.mythh.in";
+const PRODUCTION_FRONTEND = "https://mythh.in";
 const OAUTH_NEXT_COOKIE = "mythh_oauth_next";
 const OAUTH_ORIGIN_COOKIE = "mythh_oauth_origin";
 

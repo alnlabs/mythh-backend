@@ -14,7 +14,8 @@
     "lint": "eslint src",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "seed:myths": "node scripts/seed-myths.mjs",
-    "seed:country-myths": "node scripts/seed-country-myths.mjs"
+    "seed:country-myths": "node scripts/seed-country-myths.mjs",
+    "test": "tsx --test src/modules/votes/vote.logic.test.ts"
   },
   "dependencies": {
     "@supabase/server": "^1.6.0",

@@ -4,6 +4,11 @@ import type { VoteValue } from "../../database/types.js";
 import { uniqueSlug } from "../../utils/slug.js";
 import { presentMyth, type MythRow } from "./myth.presenter.js";
 
+export type VoteIdentity = {
+  userId?: string | null;
+  anonymousId?: string | null;
+};
+
 const mythSelect = `
   id,
   title,
@@ -19,17 +24,19 @@ const mythSelect = `
   sources(id, title, url)
 `;
 
+type VoteStatRow = { myth_id: string; value: VoteValue; user_id: string | null };
+
 async function loadStats(client: MythhClient, mythIds: string[]) {
   if (mythIds.length === 0) {
     return {
-      votesByMyth: new Map<string, VoteValue[]>(),
+      votesByMyth: new Map<string, VoteStatRow[]>(),
       commentsByMyth: new Map<string, number>(),
     };
   }
 
   const [{ data: votes, error: voteError }, { data: comments, error: commentError }] =
     await Promise.all([
-      client.from("votes").select("myth_id, value").in("myth_id", mythIds),
+      client.from("votes").select("myth_id, value, user_id").in("myth_id", mythIds),
       client.from("comments").select("myth_id").eq("status", "VISIBLE").in("myth_id", mythIds),
     ]);
 
@@ -41,12 +48,12 @@ async function loadStats(client: MythhClient, mythIds: string[]) {
     throw new HttpError(502, commentError.message, "COMMENT_STATS_FAILED");
   }
 
-  const votesByMyth = new Map<string, VoteValue[]>();
+  const votesByMyth = new Map<string, VoteStatRow[]>();
   const commentsByMyth = new Map<string, number>();
 
   for (const vote of votes ?? []) {
     const current = votesByMyth.get(vote.myth_id) ?? [];
-    current.push(vote.value);
+    current.push(vote);
     votesByMyth.set(vote.myth_id, current);
   }
 
@@ -60,9 +67,46 @@ async function loadStats(client: MythhClient, mythIds: string[]) {
   return { votesByMyth, commentsByMyth };
 }
 
+async function loadMyVotes(
+  client: MythhClient,
+  mythIds: string[],
+  identity: VoteIdentity = {},
+) {
+  const mine = new Map<string, VoteValue>();
+  if (mythIds.length === 0) return mine;
+
+  const filters = [
+    identity.userId ? `user_id.eq.${identity.userId}` : "",
+    identity.anonymousId ? `anonymous_id.eq.${identity.anonymousId}` : "",
+  ].filter(Boolean);
+
+  if (filters.length === 0) return mine;
+
+  const { data, error } = await client
+    .from("votes")
+    .select("myth_id, value, user_id")
+    .in("myth_id", mythIds)
+    .or(filters.join(","));
+
+  if (error) {
+    throw new HttpError(502, error.message, "MY_VOTE_LOOKUP_FAILED");
+  }
+
+  for (const vote of data ?? []) {
+    if (identity.userId && vote.user_id === identity.userId) {
+      mine.set(vote.myth_id, vote.value);
+    } else if (!mine.has(vote.myth_id)) {
+      mine.set(vote.myth_id, vote.value);
+    }
+  }
+
+  return mine;
+}
+
 export async function listApprovedMyths(
   client: MythhClient,
   options: { limit: number; categorySlug?: string; q?: string; country?: string },
+  identity: VoteIdentity = {},
 ) {
   let query = client
     .from("myths")
@@ -107,16 +151,18 @@ export async function listApprovedMyths(
   }
 
   const myths = (data ?? []) as unknown as MythRow[];
-  const { votesByMyth, commentsByMyth } = await loadStats(
-    client,
-    myths.map((myth) => myth.id),
-  );
+  const ids = myths.map((myth) => myth.id);
+  const [{ votesByMyth, commentsByMyth }, myVotes] = await Promise.all([
+    loadStats(client, ids),
+    loadMyVotes(client, ids, identity),
+  ]);
 
   return myths.map((myth) =>
     presentMyth(
       myth,
       votesByMyth.get(myth.id) ?? [],
       commentsByMyth.get(myth.id) ?? 0,
+      myVotes.get(myth.id) ?? null,
     ),
   );
 }
@@ -128,7 +174,11 @@ function sanitizeSearch(value: string) {
   return value.replace(/[%_,()]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
 }
 
-export async function getMyth(client: MythhClient, idOrSlug: string) {
+export async function getMyth(
+  client: MythhClient,
+  idOrSlug: string,
+  identity: VoteIdentity = {},
+) {
   const isUuid = uuidPattern.test(idOrSlug);
 
   const { data, error } = await client
@@ -146,12 +196,16 @@ export async function getMyth(client: MythhClient, idOrSlug: string) {
   }
 
   const myth = data as unknown as MythRow;
-  const { votesByMyth, commentsByMyth } = await loadStats(client, [myth.id]);
+  const [{ votesByMyth, commentsByMyth }, myVotes] = await Promise.all([
+    loadStats(client, [myth.id]),
+    loadMyVotes(client, [myth.id], identity),
+  ]);
 
   return presentMyth(
     myth,
     votesByMyth.get(myth.id) ?? [],
     commentsByMyth.get(myth.id) ?? 0,
+    myVotes.get(myth.id) ?? null,
   );
 }
 
@@ -262,30 +316,55 @@ export async function listMyMyths(client: MythhClient, userId: string) {
   return data ?? [];
 }
 
-export async function upsertVote(
+export async function castVote(
   client: MythhClient,
-  userId: string,
   mythId: string,
   value: VoteValue,
+  anonymousId: string | null,
 ) {
-  const { data, error } = await client
-    .from("votes")
-    .upsert(
-      { myth_id: mythId, user_id: userId, value },
-      { onConflict: "myth_id,user_id" },
-    )
-    .select("id, value")
-    .single();
+  const { data, error } = await client.rpc("cast_vote", {
+    p_myth_id: mythId,
+    p_value: value,
+    p_anonymous_id: anonymousId,
+  });
 
-  if (error || !data) {
-    throw new HttpError(
-      400,
-      error?.message ?? "Unable to save vote",
-      "VOTE_FAILED",
-    );
+  if (error) {
+    if (error.code === "P0002") {
+      throw new HttpError(404, "Myth not found", "MYTH_NOT_FOUND");
+    }
+    if (error.code === "22023") {
+      throw new HttpError(400, "A voting identity is required", "MISSING_VOTE_IDENTITY");
+    }
+    if (error.code === "23505") {
+      throw new HttpError(409, "Already answered", "ALREADY_ANSWERED");
+    }
+    throw new HttpError(400, error.message, "VOTE_FAILED");
   }
 
-  return data;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) {
+    throw new HttpError(400, "Unable to save vote", "VOTE_FAILED");
+  }
+
+  const result = {
+    vote: { id: row.vote_id, value: row.vote_value },
+    isCorrect: row.is_correct,
+    correctAnswer: row.correct_answer === "TRUE" || row.correct_answer === "FALSE" ? row.correct_answer : null,
+    alreadyAnswered: row.already_answered,
+  };
+
+  return result;
+}
+
+export async function claimAnonymousVotes(client: MythhClient, anonymousId: string | null) {
+  if (!anonymousId) return 0;
+  const { data, error } = await client.rpc("claim_anonymous_votes", {
+    p_anonymous_id: anonymousId,
+  });
+  if (error) {
+    throw new HttpError(400, error.message, "VOTE_CLAIM_FAILED");
+  }
+  return typeof data === "number" ? data : 0;
 }
 
 export async function createComment(

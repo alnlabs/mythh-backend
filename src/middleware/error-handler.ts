@@ -6,6 +6,7 @@ export class HttpError extends Error {
     public readonly status: number,
     message: string,
     public readonly code = "HTTP_ERROR",
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "HttpError";
@@ -37,6 +38,7 @@ export function errorHandler(
     res.status(error.status).json({
       message: error.message,
       code: error.code,
+      ...(error.details ?? {}),
     });
     return;
   }

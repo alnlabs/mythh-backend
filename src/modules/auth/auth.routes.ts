@@ -2,9 +2,11 @@ import { Router } from "express";
 import { z } from "zod";
 
 import { env } from "../../config/env.js";
+import type { MythhClient } from "../../database/client.js";
 import { HttpError } from "../../middleware/error-handler.js";
 import { requireSupabaseAuth } from "../../middleware/supabase.js";
-import { listMyMyths } from "../myths/myth.service.js";
+import { listMyMyths, claimAnonymousVotes } from "../myths/myth.service.js";
+import { readAnonymousId } from "../votes/anonymous.js";
 import { createAuthClient } from "./auth.client.js";
 import {
   appUrlFromRequest,
@@ -150,6 +152,10 @@ authRouter.get("/auth/callback", async (req, res, next) => {
         "GOOGLE_AUTH_EXCHANGE_FAILED",
       );
     }
+
+    await claimAnonymousVotes(supabase as unknown as MythhClient, readAnonymousId(req)).catch(
+      () => 0,
+    );
 
     if (frontendUrl) {
       const destination = new URL(nextPath, frontendUrl);
