@@ -32,7 +32,7 @@ function voteIdentity(req: Request, res?: { appendHeader(name: string, value: st
 }
 
 const listQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(200).default(20),
+  limit: z.coerce.number().int().min(1).max(1000).default(20),
   category: z.string().min(1).optional(),
   q: z.string().min(1).optional(),
   country: z

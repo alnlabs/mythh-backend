@@ -635,9 +635,10 @@ const culture = pack("culture", [
 ]);
 
 import { extraMyths } from "./myth-catalog-extra.mjs";
+import { popularMyths } from "./popular-myths.mjs";
 
 export function buildCatalog() {
-  const all = [...science, ...health, ...history, ...technology, ...culture, ...extraMyths];
+  const all = [...popularMyths, ...science, ...health, ...history, ...technology, ...culture, ...extraMyths];
   const seen = new Set();
   const out = [];
 

@@ -45,6 +45,20 @@ async function rest(path, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+async function listAll(pathBase) {
+  const rows = [];
+  const page = 1000;
+  let offset = 0;
+  while (true) {
+    const sep = pathBase.includes("?") ? "&" : "?";
+    const chunk = await rest(`${pathBase}${sep}limit=${page}&offset=${offset}&order=slug.asc`);
+    rows.push(...(chunk ?? []));
+    if (!chunk || chunk.length < page) break;
+    offset += page;
+  }
+  return rows;
+}
+
 const categories = await rest("categories?select=id,slug");
 const categoryIds = new Map(categories.map((row) => [row.slug, row.id]));
 
@@ -54,8 +68,8 @@ for (const slug of ["science", "health", "history", "technology", "culture"]) {
   }
 }
 
-const existing = await rest("myths?select=slug&limit=2000");
-const have = new Set((existing ?? []).map((row) => row.slug));
+const existing = await listAll("myths?select=slug");
+const have = new Set(existing.map((row) => row.slug));
 const catalog = buildCatalog();
 const rows = catalog
   .filter((item) => !have.has(item.slug))
@@ -75,15 +89,15 @@ let inserted = 0;
 
 for (let index = 0; index < rows.length; index += chunkSize) {
   const chunk = rows.slice(index, index + chunkSize);
-  const saved = await rest("myths", {
+  const saved = await rest("myths?on_conflict=slug", {
     method: "POST",
     prefer: "return=representation,resolution=ignore-duplicates",
     body: JSON.stringify(chunk),
   });
-  inserted += saved?.length ?? chunk.length;
+  inserted += saved?.length ?? 0;
   console.log(`Inserted chunk ${Math.min(index + chunk.length, rows.length)}/${rows.length}`);
 }
 
-const totals = await rest("myths?select=status&limit=2000");
+const totals = await listAll("myths?select=status");
 const approved = (totals ?? []).filter((row) => row.status === "APPROVED").length;
 console.log(`Done. Approved myths now: ${approved}. New this run: ${inserted}.`);

@@ -40,7 +40,7 @@ categoryRouter.get("/categories/:slug", async (req, res, next) => {
     }
 
     const myths = await listApprovedMyths(createAnonClient(), {
-      limit: 200,
+      limit: 1000,
       categorySlug: data.slug,
     });
 

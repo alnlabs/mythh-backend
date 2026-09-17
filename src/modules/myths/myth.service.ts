@@ -30,42 +30,63 @@ const mythSelect = `
 
 type VoteStatRow = { myth_id: string; value: VoteValue; user_id: string | null };
 
+const FEED_POOL = 1000;
+const IN_CHUNK = 80;
+
+function shuffle<T>(items: T[]) {
+  const next = [...items];
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(Math.random() * (index + 1));
+    const current = next[index];
+    const other = next[swap];
+    if (current === undefined || other === undefined) continue;
+    next[index] = other;
+    next[swap] = current;
+  }
+  return next;
+}
+
+function chunksOf<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
 async function loadStats(client: MythhClient, mythIds: string[]) {
-  if (mythIds.length === 0) {
-    return {
-      votesByMyth: new Map<string, VoteStatRow[]>(),
-      commentsByMyth: new Map<string, number>(),
-    };
-  }
-
-  const [{ data: votes, error: voteError }, { data: comments, error: commentError }] =
-    await Promise.all([
-      client.from("votes").select("myth_id, value, user_id").in("myth_id", mythIds),
-      client.from("comments").select("myth_id").eq("status", "VISIBLE").in("myth_id", mythIds),
-    ]);
-
-  if (voteError) {
-    throw new HttpError(502, voteError.message, "VOTE_STATS_FAILED");
-  }
-
-  if (commentError) {
-    throw new HttpError(502, commentError.message, "COMMENT_STATS_FAILED");
-  }
-
   const votesByMyth = new Map<string, VoteStatRow[]>();
   const commentsByMyth = new Map<string, number>();
-
-  for (const vote of votes ?? []) {
-    const current = votesByMyth.get(vote.myth_id) ?? [];
-    current.push(vote);
-    votesByMyth.set(vote.myth_id, current);
+  if (mythIds.length === 0) {
+    return { votesByMyth, commentsByMyth };
   }
 
-  for (const comment of comments ?? []) {
-    commentsByMyth.set(
-      comment.myth_id,
-      (commentsByMyth.get(comment.myth_id) ?? 0) + 1,
-    );
+  const parts = await Promise.all(
+    chunksOf(mythIds, IN_CHUNK).map(async (chunk) => {
+      const [{ data: votes, error: voteError }, { data: comments, error: commentError }] =
+        await Promise.all([
+          client.from("votes").select("myth_id, value, user_id").in("myth_id", chunk),
+          client.from("comments").select("myth_id").eq("status", "VISIBLE").in("myth_id", chunk),
+        ]);
+      if (voteError) {
+        throw new HttpError(502, voteError.message, "VOTE_STATS_FAILED");
+      }
+      if (commentError) {
+        throw new HttpError(502, commentError.message, "COMMENT_STATS_FAILED");
+      }
+      return { votes: votes ?? [], comments: comments ?? [] };
+    }),
+  );
+
+  for (const part of parts) {
+    for (const vote of part.votes) {
+      const current = votesByMyth.get(vote.myth_id) ?? [];
+      current.push(vote);
+      votesByMyth.set(vote.myth_id, current);
+    }
+    for (const comment of part.comments) {
+      commentsByMyth.set(comment.myth_id, (commentsByMyth.get(comment.myth_id) ?? 0) + 1);
+    }
   }
 
   return { votesByMyth, commentsByMyth };
@@ -86,21 +107,27 @@ async function loadMyVotes(
 
   if (filters.length === 0) return mine;
 
-  const { data, error } = await client
-    .from("votes")
-    .select("myth_id, value, user_id")
-    .in("myth_id", mythIds)
-    .or(filters.join(","));
+  const parts = await Promise.all(
+    chunksOf(mythIds, IN_CHUNK).map(async (chunk) => {
+      const { data, error } = await client
+        .from("votes")
+        .select("myth_id, value, user_id")
+        .in("myth_id", chunk)
+        .or(filters.join(","));
+      if (error) {
+        throw new HttpError(502, error.message, "MY_VOTE_LOOKUP_FAILED");
+      }
+      return data ?? [];
+    }),
+  );
 
-  if (error) {
-    throw new HttpError(502, error.message, "MY_VOTE_LOOKUP_FAILED");
-  }
-
-  for (const vote of data ?? []) {
-    if (identity.userId && vote.user_id === identity.userId) {
-      mine.set(vote.myth_id, vote.value);
-    } else if (!mine.has(vote.myth_id)) {
-      mine.set(vote.myth_id, vote.value);
+  for (const rows of parts) {
+    for (const vote of rows) {
+      if (identity.userId && vote.user_id === identity.userId) {
+        mine.set(vote.myth_id, vote.value);
+      } else if (!mine.has(vote.myth_id)) {
+        mine.set(vote.myth_id, vote.value);
+      }
     }
   }
 
@@ -112,12 +139,13 @@ export async function listApprovedMyths(
   options: { limit: number; categorySlug?: string; q?: string; country?: string },
   identity: VoteIdentity = {},
 ) {
+  const scan = options.q ? options.limit : FEED_POOL;
   let query = client
     .from("myths")
     .select(mythCardSelect)
     .eq("status", "APPROVED")
-    .order("created_at", { ascending: false })
-    .limit(options.limit);
+    .order("id", { ascending: true })
+    .limit(scan);
 
   if (options.country) {
     query = query.or(`country_code.eq.${options.country},country_code.is.null`);
@@ -154,14 +182,15 @@ export async function listApprovedMyths(
     throw new HttpError(502, error.message, "MYTH_LIST_FAILED");
   }
 
-  const myths = (data ?? []) as unknown as MythRow[];
-  const ids = myths.map((myth) => myth.id);
+  const myths = (options.q ? (data ?? []) : shuffle(data ?? [])) as unknown as MythRow[];
+  const picked = myths.slice(0, options.limit);
+  const ids = picked.map((myth) => myth.id);
   const [{ votesByMyth, commentsByMyth }, myVotes] = await Promise.all([
     loadStats(client, ids),
     loadMyVotes(client, ids, identity),
   ]);
 
-  return myths.map((myth) =>
+  return picked.map((myth) =>
     presentMyth(
       myth,
       votesByMyth.get(myth.id) ?? [],
@@ -379,8 +408,8 @@ export async function pickApprovedMythSlug(
     .from("myths")
     .select("slug, country_code")
     .eq("status", "APPROVED")
-    .order("created_at", { ascending: false })
-    .limit(24);
+    .order("id", { ascending: true })
+    .limit(FEED_POOL);
 
   if (options.country) {
     query = query.or(`country_code.eq.${options.country},country_code.is.null`);
