@@ -1,4 +1,5 @@
 import type { VoteValue } from "../../database/types.js";
+import { isAdultSlug } from "./adult-slugs.js";
 
 type CategoryRow = {
   id: string;
@@ -81,6 +82,7 @@ export function presentMyth(
     createdAt: myth.created_at,
     updatedAt: myth.updated_at,
     countryCode: myth.country_code,
+    isAdult: isAdultSlug(myth.slug),
     category: category
       ? { id: category.id, name: category.name, slug: category.slug }
       : null,

@@ -109,10 +109,14 @@ mythRouter.get("/search", optionalSupabaseAuth(), async (req, res, next) => {
 mythRouter.get("/myths/random", optionalSupabaseAuth(), async (req, res, next) => {
   try {
     const query = listQuerySchema.parse(req.query);
-    const slug = await pickApprovedMythSlug(req.supabase ?? createAnonClient(), {
-      ...(query.category ? { categorySlug: query.category } : {}),
-      ...(query.country ? { country: query.country } : {}),
-    });
+    const slug = await pickApprovedMythSlug(
+      req.supabase ?? createAnonClient(),
+      {
+        ...(query.category ? { categorySlug: query.category } : {}),
+        ...(query.country ? { country: query.country } : {}),
+      },
+      voteIdentity(req, res),
+    );
     if (!slug) {
       throw new HttpError(404, "Myth not found", "MYTH_NOT_FOUND");
     }
@@ -128,7 +132,12 @@ mythRouter.get("/myths/related", optionalSupabaseAuth(), rateLimit({ name: "rela
     if (!query.q) {
       throw new HttpError(400, "Search query is required", "MISSING_SEARCH_QUERY");
     }
-    const myths = await listRelatedMyths(req.supabase ?? createAnonClient(), query.q, query.limit);
+    const myths = await listRelatedMyths(
+      req.supabase ?? createAnonClient(),
+      query.q,
+      query.limit,
+      voteIdentity(req, res),
+    );
     res.json({ myths });
   } catch (error) {
     next(error);
@@ -148,20 +157,28 @@ mythRouter.get("/myths/:idOrSlug", optionalSupabaseAuth(), async (req, res, next
   }
 });
 
-mythRouter.get("/myths/:idOrSlug/comments", async (req, res, next) => {
+mythRouter.get("/myths/:idOrSlug/comments", optionalSupabaseAuth(), async (req, res, next) => {
   try {
-    const myth = await getMyth(createAnonClient(), String(req.params.idOrSlug ?? ""));
-    const comments = await listMythComments(createAnonClient(), myth.id);
+    const myth = await getMyth(
+      req.supabase ?? createAnonClient(),
+      String(req.params.idOrSlug ?? ""),
+      voteIdentity(req, res),
+    );
+    const comments = await listMythComments(req.supabase ?? createAnonClient(), myth.id);
     res.json({ comments });
   } catch (error) {
     next(error);
   }
 });
 
-mythRouter.get("/myths/:idOrSlug/sources", async (req, res, next) => {
+mythRouter.get("/myths/:idOrSlug/sources", optionalSupabaseAuth(), async (req, res, next) => {
   try {
-    const myth = await getMyth(createAnonClient(), String(req.params.idOrSlug ?? ""));
-    const sources = await listMythSources(createAnonClient(), myth.id);
+    const myth = await getMyth(
+      req.supabase ?? createAnonClient(),
+      String(req.params.idOrSlug ?? ""),
+      voteIdentity(req, res),
+    );
+    const sources = await listMythSources(req.supabase ?? createAnonClient(), myth.id);
     res.json({ sources });
   } catch (error) {
     next(error);
@@ -209,7 +226,8 @@ mythRouter.post(
 
       const idOrSlug = String(req.params.idOrSlug ?? "");
       const client = req.supabase ?? createAnonClient();
-      const myth = await getMyth(client, idOrSlug);
+      const identity = voteIdentity(req, res);
+      const myth = await getMyth(client, idOrSlug, identity);
       const userId = req.supabaseAuth?.userClaims?.id ?? null;
       const anonymousId = userId ? readAnonymousId(req) : ensureAnonymousId(req, res);
       const result = await castVote(client, myth.id, selected, userId ? null : anonymousId);
@@ -240,7 +258,9 @@ mythRouter.post(
 
       const body = commentSchema.parse(req.body);
       const idOrSlug = String(req.params.idOrSlug ?? "");
-      const myth = await getMyth(req.supabase, idOrSlug);
+      const myth = await getMyth(req.supabase, idOrSlug, {
+        userId: req.supabaseAuth?.userClaims?.id ?? null,
+      });
       const comment = await createComment(req.supabase, myth.id, body.content);
       res.status(201).json({ comment });
     } catch (error) {
@@ -259,7 +279,9 @@ mythRouter.post(
       }
 
       const body = reportSchema.parse(req.body);
-      const myth = await getMyth(req.supabase, String(req.params.idOrSlug ?? ""));
+      const myth = await getMyth(req.supabase, String(req.params.idOrSlug ?? ""), {
+        userId: req.supabaseAuth?.userClaims?.id ?? null,
+      });
       const report = await createReport(req.supabase, {
         target: "MYTH",
         mythId: myth.id,
@@ -282,7 +304,9 @@ mythRouter.post(
       }
 
       const body = reportSchema.parse(req.body);
-      const myth = await getMyth(req.supabase, String(req.params.idOrSlug ?? ""));
+      const myth = await getMyth(req.supabase, String(req.params.idOrSlug ?? ""), {
+        userId: req.supabaseAuth?.userClaims?.id ?? null,
+      });
       const report = await createReport(req.supabase, {
         target: "COMMENT",
         mythId: myth.id,

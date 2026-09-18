@@ -2,6 +2,7 @@ import { HttpError } from "../../middleware/error-handler.js";
 import type { MythhClient } from "../../database/client.js";
 import type { VoteValue } from "../../database/types.js";
 import { uniqueSlug } from "../../utils/slug.js";
+import { hideAdultContent, isAdultSlug } from "./adult-slugs.js";
 import { presentMyth, type MythRow } from "./myth.presenter.js";
 
 export type VoteIdentity = {
@@ -182,7 +183,9 @@ export async function listApprovedMyths(
     throw new HttpError(502, error.message, "MYTH_LIST_FAILED");
   }
 
-  const myths = (options.q ? (data ?? []) : shuffle(data ?? [])) as unknown as MythRow[];
+  const loaded = (data ?? []) as unknown as MythRow[];
+  const allowed = hideAdultContent(identity) ? loaded.filter((myth) => !isAdultSlug(myth.slug)) : loaded;
+  const myths = options.q ? allowed : shuffle(allowed);
   const picked = myths.slice(0, options.limit);
   const ids = picked.map((myth) => myth.id);
   const [{ votesByMyth, commentsByMyth }, myVotes] = await Promise.all([
@@ -306,7 +309,12 @@ function relatedScore(title: string, query: string) {
   return hits * 20 + Math.round((hits / tokens.length) * 40);
 }
 
-export async function listRelatedMyths(client: MythhClient, q: string, limit = 5) {
+export async function listRelatedMyths(
+  client: MythhClient,
+  q: string,
+  limit = 5,
+  identity: VoteIdentity = {},
+) {
   const phrase = sanitizeSearch(q).toLowerCase();
   if (phrase.length < 4) return [];
   const tokens = relatedTokens(q);
@@ -359,6 +367,7 @@ export async function listRelatedMyths(client: MythhClient, q: string, limit = 5
           : null,
       };
     })
+    .filter((row) => !(hideAdultContent(identity) && isAdultSlug(row.slug)))
     .filter((row) => row.score >= minScore)
     .sort((left, right) => right.score - left.score)
     .slice(0, Math.min(limit, 8))
@@ -387,6 +396,9 @@ export async function getMyth(
   }
 
   const myth = data as unknown as MythRow;
+  if (hideAdultContent(identity) && isAdultSlug(myth.slug)) {
+    throw new HttpError(401, "Sign in to view this 18+ claim", "ADULT_LOGIN_REQUIRED");
+  }
   const [{ votesByMyth, commentsByMyth }, myVotes] = await Promise.all([
     loadStats(client, [myth.id]),
     loadMyVotes(client, [myth.id], identity),
@@ -403,6 +415,7 @@ export async function getMyth(
 export async function pickApprovedMythSlug(
   client: MythhClient,
   options: { categorySlug?: string; country?: string } = {},
+  identity: VoteIdentity = {},
 ) {
   let query = client
     .from("myths")
@@ -434,7 +447,9 @@ export async function pickApprovedMythSlug(
     throw new HttpError(502, error.message, "MYTH_PICK_FAILED");
   }
 
-  const rows = data ?? [];
+  const rows = hideAdultContent(identity)
+    ? (data ?? []).filter((row) => !isAdultSlug(row.slug))
+    : (data ?? []);
   if (rows.length === 0) return null;
   const local = options.country
     ? rows.filter((row) => row.country_code === options.country)
